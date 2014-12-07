@@ -17,7 +17,7 @@ static void tick_handler(struct tm *tm, TimeUnits units_changed) {
     snprintf(time_buffer, sizeof(time_buffer), "twenty-four hundred hours");
   } else {
     if (tm->tm_min == 0) {
-      minutes[0] = '\0';
+      snprintf(minutes, sizeof(minutes), "hundred");
     } else if (tm->tm_min < 10) {
       snprintf(minutes, sizeof(minutes), "oh %s", num_names[tm->tm_min]);
     } else if (tm->tm_min < 20) {
@@ -26,10 +26,12 @@ static void tick_handler(struct tm *tm, TimeUnits units_changed) {
       snprintf(minutes, sizeof(minutes), "%s %s", multi_names[tm->tm_min / 10 - 2], num_names[tm->tm_min % 10]);
     }
     
-    if (tm->tm_hour < 20) {
-      snprintf(time_buffer, sizeof(time_buffer), "%s %s%shundred %s hours", tm->tm_hour < 10 ? "oh" : "", num_names[tm->tm_hour], tm->tm_hour == 0 ? "" : " ", minutes);
+    if (tm->tm_hour == 0) {
+      snprintf(time_buffer, sizeof(time_buffer), "oh zero %s hours", minutes);
+    } else if (tm->tm_hour < 20) {
+      snprintf(time_buffer, sizeof(time_buffer), "%s %s %s hours", tm->tm_hour < 10 ? "oh" : "", num_names[tm->tm_hour], minutes);
     } else {
-      snprintf(time_buffer, sizeof(time_buffer), "twenty %s%shundred %s hours", num_names[tm->tm_hour - 20], tm->tm_hour == 20 ? "" : " ", minutes);
+      snprintf(time_buffer, sizeof(time_buffer), "twenty %s%s%s hours", num_names[tm->tm_hour - 20], tm->tm_hour == 20 ? "" : " ", minutes);
     }
   }
   text_layer_set_text(time_layer, time_buffer);
