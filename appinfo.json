@@ -1,0 +1,19 @@
+{
+    "appKeys": {},
+    "capabilities": [
+        ""
+    ],
+    "companyName": "tilghman@meg.abyt.es",
+    "longName": "Military Time",
+    "projectType": "native",
+    "resources": {
+        "media": []
+    },
+    "shortName": "MilTime",
+    "uuid": "55e84293-e765-4b09-9280-ae50b5238b73",
+    "versionCode": 1,
+    "versionLabel": "0.1",
+    "watchapp": {
+        "watchface": true
+    }
+}
