@@ -1,15 +1,15 @@
 #include <pebble.h>
 
 static Window *main_window;
-static TextLayer *time_layer;
+static TextLayer *time_layer, *date_layer;
 static BitmapLayer *battery_layer;
 static BitmapLayer *bmeter_layer;
-static char time_buffer[64] = "";
+static char time_buffer[64] = "", date_buffer[64] = "";
 static GBitmap *battery_bitmap;
 static GBitmap *bmeter_bitmap;
 
 static const char num_names[][10] = {
-  "", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seven teen", "eighteen", "nineteen"
+  "", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"
 };
 static const char multi_names[][7] = {
   "twenty", "thirty", "forty", "fifty"
@@ -22,7 +22,7 @@ static void battery_state_handler(BatteryChargeState batt)
 	unsigned char *bitfield = (unsigned char *) battery_bitmap->addr;
 
 	for (i = 0; i < 140; i++) {
-		short corresponding_percentage = i * 1.4;
+		short corresponding_percentage = i / 1.4;
 		short bitnum = i;
 		short byte_offset = bitnum / 8;
 		short bit_offset = bitnum % 8;
@@ -43,7 +43,7 @@ static void tick_handler(struct tm *tm, TimeUnits units_changed) {
   char minutes[16] = "";
   if (tm->tm_hour == 0 && tm->tm_min == 0) {
     /* Beginning of the day is the exception */
-    snprintf(time_buffer, sizeof(time_buffer), "twenty-four hundred hours");
+    snprintf(time_buffer, sizeof(time_buffer), "twenty four hundred hours");
   } else {
     if (tm->tm_min == 0) {
       snprintf(minutes, sizeof(minutes), "hundred");
@@ -63,7 +63,9 @@ static void tick_handler(struct tm *tm, TimeUnits units_changed) {
       snprintf(time_buffer, sizeof(time_buffer), "twenty %s%s%s hours", num_names[tm->tm_hour - 20], tm->tm_hour == 20 ? "" : " ", minutes);
     }
   }
+  strftime(date_buffer, sizeof(date_buffer), "%a, %b %e", tm);
   text_layer_set_text(time_layer, time_buffer);
+  text_layer_set_text(date_layer, date_buffer);
 }
 
 static void main_window_load(Window *w) {
@@ -74,14 +76,21 @@ static void main_window_load(Window *w) {
   time_layer = text_layer_create(GRect(0, 10, 144, 168));
   text_layer_set_background_color(time_layer, GColorClear);
   text_layer_set_text_color(time_layer, GColorBlack);
-  text_layer_set_font(time_layer, fonts_get_system_font(FONT_KEY_DROID_SERIF_28_BOLD));
+  text_layer_set_font(time_layer, fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD));
   text_layer_set_text_alignment(time_layer, GTextAlignmentCenter);
+
+  date_layer = text_layer_create(GRect(0, 135, 144, 20));
+  text_layer_set_background_color(date_layer, GColorClear);
+  text_layer_set_text_color(date_layer, GColorBlack);
+  text_layer_set_font(date_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18));
+  text_layer_set_text_alignment(date_layer, GTextAlignmentCenter);
 
   /* Bottom of the screen gets a battery indicator */
   battery_layer = bitmap_layer_create(GRect(1, 165, 142, 2));
   bmeter_layer = bitmap_layer_create(GRect(1, 163, 142, 2));
 
   layer_add_child(window_get_root_layer(main_window), text_layer_get_layer(time_layer));
+  layer_add_child(window_get_root_layer(main_window), text_layer_get_layer(date_layer));
   layer_add_child(window_get_root_layer(main_window), bitmap_layer_get_layer(battery_layer));
   layer_add_child(window_get_root_layer(main_window), bitmap_layer_get_layer(bmeter_layer));
 
@@ -94,6 +103,7 @@ static void main_window_load(Window *w) {
 
 static void main_window_unload(Window *w) {
   text_layer_destroy(time_layer);
+  text_layer_destroy(date_layer);
   bitmap_layer_destroy(battery_layer);
   bitmap_layer_destroy(bmeter_layer);
 }
