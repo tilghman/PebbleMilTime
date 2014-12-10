@@ -3,11 +3,13 @@
 static Window *main_window;
 static TextLayer *time_layer;
 static BitmapLayer *battery_layer;
+static BitmapLayer *bmeter_layer;
 static char time_buffer[64] = "";
 static GBitmap *battery_bitmap;
+static GBitmap *bmeter_bitmap;
 
 static const char num_names[][10] = {
-  "", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"
+  "", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seven teen", "eighteen", "nineteen"
 };
 static const char multi_names[][7] = {
   "twenty", "thirty", "forty", "fifty"
@@ -19,20 +21,19 @@ static void battery_state_handler(BatteryChargeState batt)
 	int i;
 	unsigned char *bitfield = (unsigned char *) battery_bitmap->addr;
 
-	/* 144 is 18 bytes, 8 bits apiece. */
-	for (i = 0; i < 72; i++) {
-		short corresponding_percentage = i * 144 / 100;
-		short bitnum = i * 2;
+	for (i = 0; i < 140; i++) {
+		short corresponding_percentage = i * 1.4;
+		short bitnum = i;
 		short byte_offset = bitnum / 8;
 		short bit_offset = bitnum % 8;
 		if (batt.charge_percent > corresponding_percentage) {
 			/* Set black (unset bit) */
-			bitfield[ 0 + byte_offset] &= ~(3 << bit_offset);
-			bitfield[20 + byte_offset] &= ~(3 << bit_offset);
+			bitfield[ 0 + byte_offset] &= ~(1 << bit_offset);
+			bitfield[20 + byte_offset] &= ~(1 << bit_offset);
 		} else {
 			/* Set white */
-			bitfield[ 0 + byte_offset] |= (3 << bit_offset);
-			bitfield[20 + byte_offset] |= (3 << bit_offset);
+			bitfield[ 0 + byte_offset] |= (1 << bit_offset);
+			bitfield[20 + byte_offset] |= (1 << bit_offset);
 		}
 	}
 	bitmap_layer_set_bitmap(battery_layer, battery_bitmap);
@@ -77,10 +78,12 @@ static void main_window_load(Window *w) {
   text_layer_set_text_alignment(time_layer, GTextAlignmentCenter);
 
   /* Bottom of the screen gets a battery indicator */
-  battery_layer = bitmap_layer_create(GRect(0, 165, 144, 2));
+  battery_layer = bitmap_layer_create(GRect(1, 165, 142, 2));
+  bmeter_layer = bitmap_layer_create(GRect(1, 163, 142, 2));
 
   layer_add_child(window_get_root_layer(main_window), text_layer_get_layer(time_layer));
   layer_add_child(window_get_root_layer(main_window), bitmap_layer_get_layer(battery_layer));
+  layer_add_child(window_get_root_layer(main_window), bitmap_layer_get_layer(bmeter_layer));
 
   /* Set the initial states */
   tm = localtime(&now);
@@ -92,12 +95,29 @@ static void main_window_load(Window *w) {
 static void main_window_unload(Window *w) {
   text_layer_destroy(time_layer);
   bitmap_layer_destroy(battery_layer);
+  bitmap_layer_destroy(bmeter_layer);
 }
 
 static void init() {
+  unsigned char meter_map[] =
+	/*ff______3f______00______f0______ff______03______00______ */
+	/*11111111111111000000000000001111111111111100000000000000 */
+	/* { 0xff, 0x3f, 0x00, 0xf0, 0xff, 0x03, 0x00, 0xff, 0x3f, 0x00,
+	  0xf0, 0xff, 0x03, 0x00, 0xff, 0x3f, 0x00, 0xf0, 0xff, 0x03,
+	  0xff, 0x3f, 0x00, 0xf0, 0xff, 0x03, 0x00, 0xff, 0x3f, 0x00,
+	  0xf0, 0xff, 0x03, 0x00, 0xff, 0x3f, 0x00, 0xf0, 0xff, 0x03, }; */
+	/* 0111 1111 1111 1101 1111 1111 1111 0111 1111 1111 1101 1111 1111 1111 */
+	/* e    f    f    d    f    f    f    e    f    f    d    f    f    f    */
+	/* fe        df        ff        ef        ff        fd        ff        */
+	{ 0xfe, 0xdf, 0xff, 0xef, 0xff, 0xfd, 0xff, 0xfe, 0xdf, 0xff,
+	  0xef, 0xff, 0xfd, 0xff, 0xfe, 0xdf, 0xff, 0xef, 0xff, 0xfd,
+	  0xfe, 0xdf, 0xff, 0xef, 0xff, 0xfd, 0xff, 0xfe, 0xdf, 0xff,
+	  0xef, 0xff, 0xfd, 0xff, 0xfe, 0xdf, 0xff, 0xef, 0xff, 0xfd, };
   /* Set up the memory for the bitmap before we load the window */
   battery_bitmap = gbitmap_create_blank(GSize(144, 2));
-  memset(battery_bitmap->addr, 0xff, (144 / 8) * 2);
+  memset(battery_bitmap->addr, 0xff, 20 * 2);
+  bmeter_bitmap = gbitmap_create_blank(GSize(144, 2));
+  memcpy(bmeter_bitmap->addr, meter_map, 20 * 2);
 
   main_window = window_create();
   window_set_window_handlers(main_window, (WindowHandlers) {
@@ -108,6 +128,8 @@ static void init() {
 
   tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
   battery_state_service_subscribe(battery_state_handler);
+
+  bitmap_layer_set_bitmap(bmeter_layer, bmeter_bitmap);
 }
 
 static void deinit() {
