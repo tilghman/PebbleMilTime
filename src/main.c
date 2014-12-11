@@ -3,10 +3,8 @@
 static Window *main_window;
 static TextLayer *time_layer, *date_layer;
 static BitmapLayer *battery_layer;
-static BitmapLayer *bmeter_layer;
 static char time_buffer[64] = "", date_buffer[64] = "";
 static GBitmap *battery_bitmap;
-static GBitmap *bmeter_bitmap;
 
 static const char num_names[][10] = {
   "", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"
@@ -28,12 +26,12 @@ static void battery_state_handler(BatteryChargeState batt)
 		short bit_offset = bitnum % 8;
 		if (batt.charge_percent > corresponding_percentage) {
 			/* Set black (unset bit) */
-			bitfield[ 0 + byte_offset] &= ~(1 << bit_offset);
-			bitfield[20 + byte_offset] &= ~(1 << bit_offset);
+			bitfield[40 + byte_offset] &= ~(1 << bit_offset);
+			bitfield[60 + byte_offset] &= ~(1 << bit_offset);
 		} else {
 			/* Set white */
-			bitfield[ 0 + byte_offset] |= (1 << bit_offset);
-			bitfield[20 + byte_offset] |= (1 << bit_offset);
+			bitfield[40 + byte_offset] |= (1 << bit_offset);
+			bitfield[60 + byte_offset] |= (1 << bit_offset);
 		}
 	}
 	bitmap_layer_set_bitmap(battery_layer, battery_bitmap);
@@ -86,13 +84,11 @@ static void main_window_load(Window *w) {
   text_layer_set_text_alignment(date_layer, GTextAlignmentCenter);
 
   /* Bottom of the screen gets a battery indicator */
-  battery_layer = bitmap_layer_create(GRect(1, 165, 142, 2));
-  bmeter_layer = bitmap_layer_create(GRect(1, 163, 142, 2));
+  battery_layer = bitmap_layer_create(GRect(1, 163, 142, 5));
 
   layer_add_child(window_get_root_layer(main_window), text_layer_get_layer(time_layer));
   layer_add_child(window_get_root_layer(main_window), text_layer_get_layer(date_layer));
   layer_add_child(window_get_root_layer(main_window), bitmap_layer_get_layer(battery_layer));
-  layer_add_child(window_get_root_layer(main_window), bitmap_layer_get_layer(bmeter_layer));
 
   /* Set the initial states */
   tm = localtime(&now);
@@ -105,7 +101,6 @@ static void main_window_unload(Window *w) {
   text_layer_destroy(time_layer);
   text_layer_destroy(date_layer);
   bitmap_layer_destroy(battery_layer);
-  bitmap_layer_destroy(bmeter_layer);
 }
 
 static void init() {
@@ -120,14 +115,13 @@ static void init() {
 	/* e    f    f    d    f    f    f    e    f    f    d    f    f    f    */
 	/* fe        df        ff        ef        ff        fd        ff        */
 	{ 0xfe, 0xdf, 0xff, 0xef, 0xff, 0xfd, 0xff, 0xfe, 0xdf, 0xff,
-	  0xef, 0xff, 0xfd, 0xff, 0xfe, 0xdf, 0xff, 0xef, 0xff, 0xfd,
-	  0xfe, 0xdf, 0xff, 0xef, 0xff, 0xfd, 0xff, 0xfe, 0xdf, 0xff,
 	  0xef, 0xff, 0xfd, 0xff, 0xfe, 0xdf, 0xff, 0xef, 0xff, 0xfd, };
   /* Set up the memory for the bitmap before we load the window */
-  battery_bitmap = gbitmap_create_blank(GSize(144, 2));
-  memset(battery_bitmap->addr, 0xff, 20 * 2);
-  bmeter_bitmap = gbitmap_create_blank(GSize(144, 2));
-  memcpy(bmeter_bitmap->addr, meter_map, 20 * 2);
+  battery_bitmap = gbitmap_create_blank(GSize(144, 5));
+  memset(battery_bitmap->addr, 0xff, 20 * 5);
+  memcpy(battery_bitmap->addr +  0, meter_map, sizeof(meter_map));
+  memcpy(battery_bitmap->addr + 20, meter_map, sizeof(meter_map));
+  memcpy(battery_bitmap->addr + 80, meter_map, sizeof(meter_map));
 
   main_window = window_create();
   window_set_window_handlers(main_window, (WindowHandlers) {
@@ -138,8 +132,6 @@ static void init() {
 
   tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
   battery_state_service_subscribe(battery_state_handler);
-
-  bitmap_layer_set_bitmap(bmeter_layer, bmeter_bitmap);
 }
 
 static void deinit() {
